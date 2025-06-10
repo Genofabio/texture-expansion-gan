@@ -10,13 +10,14 @@ from dataset.texture_dataset import TextureFolderDataset
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
-from itertools import cycle
 from utils.visualize import visualize_generator_loss_components, visualize_sample
 from utils.visualize import visualize_losses
 from utils.init_weights import weights_init_normal
 from utils.visualize import visualize_discriminator_accuracy
 from utils.load_weights import load_weights
-from utils.count_tensors import count_cpu_tensors, count_tensors
+from utils.count_tensors import count_tensors
+from utils.intraset_metrics import evaluate_intraset, save_intraset_metrics_plot
+from utils.end_train import find_well_trained_step
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -31,13 +32,19 @@ def main():
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
     ])
 
+    folder_path = 'data/input_images/'
+    num_files = sum([len(files) for _, _, files in os.walk(folder_path)])
+    print(f"Numero totale di file nella cartella: {num_files}")
+
     dataset = TextureFolderDataset(folder_path='data/input_images/', num_samples=500000, transform=transform)
-    dataloader = DataLoader(dataset, batch_size=4, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=8, shuffle=True)
 
     generator = Generator()
     discriminator = Discriminator()
 
-    start_step, losses, accuracies = load_weights(generator, discriminator)
+
+    metrics_history = []
+    start_step, losses, accuracies, metrics_history = load_weights(generator, discriminator)
 
     if start_step == 0:
         print("Inizializzazione manuale dei pesi (weights_init_normal)")
@@ -46,7 +53,7 @@ def main():
 
     trainer = GANTrainer(generator, discriminator, device)
 
-    num_steps = 10000
+    num_steps = 40000
     initial_lr = 2e-4
 
     losses_D_list = losses.get('losses_D_list', [])
@@ -76,14 +83,32 @@ def main():
             for d in trainer.optim_D.param_groups: d['lr'] = lr
 
         if step % 100 == 0:
-            
+
             losses, generated = trainer.train_step(s128, t256, coords, return_generated=True)
             end = time.time()
 
             visualize_sample(s128, t256, generated, step=step)
-            visualize_losses(losses_D_list, losses_G_list)
-            visualize_generator_loss_components(losses_G_adv_list, losses_L1_list, losses_style_list, losses_perceptual_list)
-            visualize_discriminator_accuracy(acc_real_list, acc_fake_list)
+            visualize_losses(losses_D_list, losses_G_list, timestamp, find_well_trained_step(losses_G_list, acc_real_list, acc_fake_list))
+            visualize_generator_loss_components(losses_G_adv_list, losses_L1_list, losses_style_list, losses_perceptual_list, timestamp)
+            visualize_discriminator_accuracy(acc_real_list, acc_fake_list, timestamp)
+
+            # Valutazione Intraset metrics -------------------------------------
+            metrics = evaluate_intraset(t256, generated, device=device)
+            if step == 0:
+                metrics_history = []
+            metrics_history.append({
+                'step': step,
+                'psnr': metrics['psnr'],
+                'ssim': metrics['ssim'],
+                'lpips': metrics['lpips'],
+                'fid': metrics['fid']
+            })
+
+            # Salva plot delle metriche ogni 1000 step
+            if step % 100 == 0 and len(metrics_history) > 1:
+                save_intraset_metrics_plot(metrics_history, num_files)
+
+            # ------------------------------------------------------------------
 
             torch.save({
                 'step': step,
@@ -98,7 +123,8 @@ def main():
                 'losses_style_list': losses_style_list,
                 'losses_perceptual_list': losses_perceptual_list,
                 'acc_real_list': acc_real_list,
-                'acc_fake_list': acc_fake_list
+                'acc_fake_list': acc_fake_list,
+                'metrics_history': metrics_history
             }, checkpoint_path)
 
         else:
@@ -110,7 +136,7 @@ def main():
         print(f"[{step}/{num_steps}] D: {losses['loss_D']:.4f} G: {losses['loss_G']:.4f} "
               f"(Adv: {losses['loss_G_adv']:.4f}, L1: {losses['loss_L1']:.4f}, Style: {losses['loss_style']:.4f}, Percep: {losses['loss_perceptual']:.4f}) "
               f"- {end - start:.3f}s | CPU tensors: {cpu_tensors}, GPU tensors: {gpu_tensors}")
-        
+
         losses_D_list.append(losses['loss_D'])
         losses_G_list.append(losses['loss_G'])
         losses_G_adv_list.append(losses['loss_G_adv'])
@@ -121,20 +147,21 @@ def main():
         acc_fake_list.append(losses['acc_fake'])
 
     torch.save({
-                'step': step,
-                'generator_state_dict': generator.state_dict(),
-                'discriminator_state_dict': discriminator.state_dict(),
-                'optimizer_G_state_dict': trainer.optim_G.state_dict(),
-                'optimizer_D_state_dict': trainer.optim_D.state_dict(),
-                'losses_D_list': losses_D_list,
-                'losses_G_list': losses_G_list,
-                'losses_G_adv_list': losses_G_adv_list,
-                'losses_L1_list': losses_L1_list,
-                'losses_style_list': losses_style_list,
-                'losses_perceptual_list': losses_perceptual_list,
-                'acc_real_list': acc_real_list,
-                'acc_fake_list': acc_fake_list
-            }, checkpoint_path)
+        'step': num_steps,
+        'generator_state_dict': generator.state_dict(),
+        'discriminator_state_dict': discriminator.state_dict(),
+        'optimizer_G_state_dict': trainer.optim_G.state_dict(),
+        'optimizer_D_state_dict': trainer.optim_D.state_dict(),
+        'losses_D_list': losses_D_list,
+        'losses_G_list': losses_G_list,
+        'losses_G_adv_list': losses_G_adv_list,
+        'losses_L1_list': losses_L1_list,
+        'losses_style_list': losses_style_list,
+        'losses_perceptual_list': losses_perceptual_list,
+        'acc_real_list': acc_real_list,
+        'acc_fake_list': acc_fake_list,
+        'metrics_history': metrics_history
+    }, checkpoint_path)
 
 
 if __name__ == "__main__":
