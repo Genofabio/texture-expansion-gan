@@ -72,27 +72,35 @@ def create_crop_dataset_with_metadata(
 
 if __name__ == "__main__":
     # Esempio d'uso:
-    folder_path_1img = "../data/training/images_model_1img"
-    folder_path_7img = "../data/training/images_model_7img"
-    #folder_path_20img = "../data/images_model_20img"
+    #folder_path_1img = "../data/training/images_model_1img"
+    #folder_path_7img = "../data/training/images_model_7img"
+    #folder_path_20img = "../data/training/images_model_20img"
+    folder_extraset = "../data/evaluation/extraset/test_images"
 
     # Crea crops per modello 1 immagine
-    create_crop_dataset_with_metadata(
-        get_image_paths(folder_path_1img),
-        output_dir="../data/training/crops_model_1img",
-        num_crops=1000
-    )
+    # create_crop_dataset_with_metadata(
+    #     get_image_paths(folder_path_1img),
+    #     output_dir="../data/training/crops_model_1img",
+    #     num_crops=1000
+    # )
 
     # Crea crops per modello 7 immagini
-    create_crop_dataset_with_metadata(
-        get_image_paths(folder_path_7img),
-        output_dir="../data/training/crops_model_7img",
-        num_crops=1000
-    )
+    # create_crop_dataset_with_metadata(
+    #     get_image_paths(folder_path_7img),
+    #     output_dir="../data/training/crops_model_7img",
+    #     num_crops=1000
+    # )
 
     # Crea crops per modello 20 immagini
     # create_crop_dataset_with_metadata(
     #     get_image_paths(folder_path_20img),
-    #     output_dir="../data/crops_model_20img",
+    #     output_dir="../data/evaluation/intraset/model_20img",
     #     num_crops=1000
     # )
+
+    # Crea crops per extraset
+    create_crop_dataset_with_metadata(
+        get_image_paths(folder_extraset),
+        output_dir="../data/evaluation/extraset/",
+        num_crops=1000
+    )
