@@ -5,8 +5,8 @@ import pandas as pd
 import seaborn as sns
 
 # Percorso alla cartella contenente i modelli
-base_path = "../data/evaluation/extraset/"
-save_dir = "../results/evaluation/extraset/"
+base_path = "../data/evaluation/intraset/"
+save_dir = "../results/evaluation/intraset/"
 os.makedirs(save_dir, exist_ok=True)
 
 # ======= PLOT AGGREGATI =======

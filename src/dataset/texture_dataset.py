@@ -5,11 +5,12 @@ import random
 import os
 
 class TextureFolderDataset(Dataset):
-    def __init__(self, folder_path, num_samples=10000, transform=None):
+    def __init__(self, folder_path, num_samples=10000, transform=None, use_augmentation=False):
         """
         folder_path: Cartella contenente le immagini da cui estrarre i blocchi.
         num_samples: Numero di campioni totali da generare.
         transform: Trasformazioni da applicare ai blocchi (es. ToTensor, Normalize).
+        use_augmentation: Se True, applica data augmentation sui blocchi.
         """
         self.image_paths = [os.path.join(folder_path, f) for f in os.listdir(folder_path)
                             if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
@@ -19,30 +20,40 @@ class TextureFolderDataset(Dataset):
         self.images = [Image.open(p).convert('RGB') for p in self.image_paths]
         self.num_samples = num_samples
         self.k = 128
-        self.transform = transform or T.ToTensor()
+        
+        if transform:
+            self.transform = transform
+        else:
+            # Costruisci la trasformazione in base a use_augmentation
+            if use_augmentation:
+                self.transform = T.Compose([
+                    T.RandomHorizontalFlip(),
+                    T.RandomVerticalFlip(),
+                    T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+                    T.RandomRotation(degrees=10),
+                    T.ToTensor()
+                ])
+            else:
+                self.transform = T.ToTensor()
 
     def __len__(self):
         return self.num_samples
 
     def __getitem__(self, idx):
-        # Scegli un'immagine a caso
         image = random.choice(self.images)
         width, height = image.size
 
         if width < 256 or height < 256:
             raise ValueError(f"L'immagine è troppo piccola: {width}x{height} - {image}")
 
-        # Estrai un blocco 256×256
         x = random.randint(0, width - 256)
         y = random.randint(0, height - 256)
         target_block = image.crop((x, y, x + 256, y + 256))
 
-        # Estrai un sotto-blocco 128×128 dal blocco target
         s_x = random.randint(0, 256 - 128)
         s_y = random.randint(0, 256 - 128)
         source_block = target_block.crop((s_x, s_y, s_x + 128, s_y + 128))
 
-        # Trasformazioni
         source_tensor = self.transform(source_block)
         target_tensor = self.transform(target_block)
 

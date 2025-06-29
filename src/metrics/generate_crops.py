@@ -75,7 +75,7 @@ if __name__ == "__main__":
     #folder_path_1img = "../data/training/images_model_1img"
     #folder_path_7img = "../data/training/images_model_7img"
     #folder_path_20img = "../data/training/images_model_20img"
-    folder_extraset = "../data/evaluation/extraset/test_images"
+    folder_extraset = "../../data/evaluation/test_images"
 
     # Crea crops per modello 1 immagine
     # create_crop_dataset_with_metadata(
@@ -101,6 +101,6 @@ if __name__ == "__main__":
     # Crea crops per extraset
     create_crop_dataset_with_metadata(
         get_image_paths(folder_extraset),
-        output_dir="../data/evaluation/extraset/",
+        output_dir="../../data/evaluation/extraset/model20img",
         num_crops=1000
     )

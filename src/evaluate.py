@@ -126,7 +126,7 @@ def main(model_name, base_folder, weights_path, device='cuda'):
         json.dump(aggregated_metrics, f, indent=4)
 
 if __name__ == "__main__":
-    model_name = "model_20img"
-    base_folder = "../data/evaluation/extraset/model_7img"
-    weights_path = "../data/evaluation/extraset/model_7img/weights/Paper7Imm.pt"
+    model_name = "model_1img"
+    base_folder = "../data/evaluation/extraset/model_1img"
+    weights_path = "../data/evaluation/extraset/model_1img/weights/Paper.pt"
     main(model_name, base_folder, weights_path)
