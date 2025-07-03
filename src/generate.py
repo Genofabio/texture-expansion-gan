@@ -47,7 +47,7 @@ if __name__ == "__main__":
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     generate_image(
-        input_path='../data/generation/t.png',
-        weights_path='../data/generation/weights_to_use.pt',
+        input_path='../results/generation/yy.jpg',
+        weights_path='../data/evaluation/intraset/model_7img_augmented/weights/Paper7Augmented.pt',
         output_path=f"../results/generation/output_{timestamp}.png"
     )
