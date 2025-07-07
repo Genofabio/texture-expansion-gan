@@ -34,11 +34,11 @@ def main():
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
     ])
 
-    folder_path = '../data/training/images_model_7img/'
+    folder_path = '../data/training/images_model_final/'
     num_files = sum([len(files) for _, _, files in os.walk(folder_path)])
     print(f"Numero totale di file nella cartella: {num_files}")
 
-    dataset = TextureFolderDataset(folder_path='../data/training/images_model_7img/', num_samples=500000, transform=transform)
+    dataset = TextureFolderDataset(folder_path='../data/training/images_model_final/', num_samples=500000, transform=transform)
     dataloader = DataLoader(dataset, batch_size=8, shuffle=True)
 
     generator = Generator()
@@ -55,7 +55,7 @@ def main():
 
     trainer = GANTrainer(generator, discriminator, device)
 
-    num_steps = 40000
+    num_steps = 100000
     initial_lr = 2e-4
 
     losses_D_list = losses.get('losses_D_list', [])
