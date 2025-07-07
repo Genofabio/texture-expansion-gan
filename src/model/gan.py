@@ -12,6 +12,10 @@ class GANTrainer:
         self.generator = generator.to(device)
         self.discriminator = discriminator.to(device)
 
+        # Verifica se il discriminatore è multi-scala
+        self.multi_scale = hasattr(discriminator, 'discriminators')
+        print(f"Using multi-scale discriminator: {self.multi_scale}")
+
         # Ottimizzatori
         self.optim_G = optim.Adam(self.generator.parameters(), lr=2e-4, betas=(0.5, 0.999))
         self.optim_D = optim.Adam(self.discriminator.parameters(), lr=2e-4, betas=(0.5, 0.999))
@@ -50,30 +54,65 @@ class GANTrainer:
             localized_real[i] = real_256[i, :, sy:sy+128, sx:sx+128]
             localized_fake[i] = fake_256[i, :, sy:sy+128, sx:sx+128]
 
-        valid = torch.ones((batch_size, 1, 14, 14), device=self.device)
-        fake = torch.zeros((batch_size, 1, 14, 14), device=self.device)
-
         # === Train Discriminator ===
         self.optim_D.zero_grad()
-        pred_real = self.discriminator(real_256)
-        pred_fake = self.discriminator(fake_256.detach())
 
-        threshold = 0.5
-        with torch.no_grad():
-            real_acc = (pred_real > threshold).float().mean().item()
-            fake_acc = (pred_fake < threshold).float().mean().item()
+        if self.multi_scale:
+            pred_real = self.discriminator(real_256)
+            pred_fake = self.discriminator(fake_256.detach())
 
-        loss_D = self.adv_loss(pred_real, valid) + self.adv_loss(pred_fake, fake)
+            # Crea tensori validi e fake in base alle dimensioni degli output
+            valid = [torch.ones_like(p) for p in pred_real]
+            fake = [torch.zeros_like(p) for p in pred_fake]
+
+            loss_D = 0
+            real_acc_total = 0
+            fake_acc_total = 0
+
+            for pr, vr, pf, fk in zip(pred_real, valid, pred_fake, fake):
+                loss_D += self.adv_loss(pr, vr) + self.adv_loss(pf, fk)
+
+                with torch.no_grad():
+                    real_acc_total += (pr > 0.5).float().mean().item()
+                    fake_acc_total += (pf < 0.5).float().mean().item()
+
+            loss_D /= len(pred_real)
+            real_acc = real_acc_total / len(pred_real)
+            fake_acc = fake_acc_total / len(pred_fake)
+
+        else:
+            valid = torch.ones((batch_size, 1, 14, 14), device=self.device)
+            fake = torch.zeros((batch_size, 1, 14, 14), device=self.device)
+
+            pred_real = self.discriminator(real_256)
+            pred_fake = self.discriminator(fake_256.detach())
+
+            with torch.no_grad():
+                real_acc = (pred_real > 0.5).float().mean().item()
+                fake_acc = (pred_fake < 0.5).float().mean().item()
+
+            loss_D = self.adv_loss(pred_real, valid) + self.adv_loss(pred_fake, fake)
+
         loss_D.backward()
         self.optim_D.step()
 
         # === Train Generator ===
         self.optim_G.zero_grad()
+
         pred_fake = self.discriminator(fake_256)
-        loss_G_adv = self.adv_loss(pred_fake, valid)
+
+        if self.multi_scale:
+            loss_G_adv = 0
+            for pf in pred_fake:
+                loss_G_adv += self.adv_loss(pf, torch.ones_like(pf))
+            loss_G_adv /= len(pred_fake)
+        else:
+            loss_G_adv = self.adv_loss(pred_fake, torch.ones((batch_size, 1, 14, 14), device=self.device))
+
         loss_L1 = self.l1_loss(localized_fake, localized_real)
         loss_style = self.style_loss(fake_256, real_256)
         loss_perceptual = self.perceptual_loss(fake_256, real_256)
+
         loss_G = loss_G_adv + self.lambda_l1 * loss_L1 + self.lambda_style * loss_style + self.lambda_perceptual * loss_perceptual
         loss_G.backward()
         self.optim_G.step()

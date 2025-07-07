@@ -6,7 +6,7 @@ import torch
 import matplotlib.pyplot as plt
 import time
 from model.generator import Generator
-from model.discriminator import Discriminator
+from model.multi_scale_discriminator import MultiScaleDiscriminator
 from model.gan import GANTrainer
 from dataset.texture_dataset import TextureFolderDataset
 from torch.utils.data import DataLoader
@@ -42,7 +42,7 @@ def main():
     dataloader = DataLoader(dataset, batch_size=8, shuffle=True)
 
     generator = Generator()
-    discriminator = Discriminator()
+    discriminator = MultiScaleDiscriminator(num_scales=2)
 
 
     metrics_history = []
