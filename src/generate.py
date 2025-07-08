@@ -23,31 +23,37 @@ def generate_image(input_path, weights_path, output_path):
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
     ])
-    img = Image.open(input_path).convert('RGB')
-    img = transform(img).unsqueeze(0).to(device)
 
-    start_time = time.time()
+    # Crea directory di output se non esiste
+    os.makedirs(output_path, exist_ok=True)
 
-    # Generazione immagine
-    with torch.no_grad():
-        output = generator(img)
+    input_images = [f for f in os.listdir(input_path) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
 
-    end_time = time.time()
-    elapsed_time = end_time - start_time
+    for img_name in input_images:
+        full_input_path = os.path.join(input_path, img_name)
+        img = Image.open(full_input_path).convert('RGB')
+        img_tensor = transform(img).unsqueeze(0).to(device)
 
-    # Post-processing e salvataggio
-    output = (output + 1) / 2  # da [-1, 1] a [0, 1]
-    
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    save_image(output, output_path)
+        start_time = time.time()
 
-    print(f"Immagine generata in {elapsed_time:.2f} secondi")
+        # Generazione immagine
+        with torch.no_grad():
+            output = generator(img_tensor)
+
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+
+        # Post-processing e salvataggio
+        output = (output + 1) / 2  # da [-1, 1] a [0, 1]
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        out_name = f"{os.path.splitext(img_name)[0]}_gen_{timestamp}.png"
+        save_image(output, os.path.join(output_path, out_name))
+
+        print(f"Immagine '{img_name}' generata in {elapsed_time:.2f} secondi")
 
 if __name__ == "__main__":
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    
     generate_image(
-        input_path='../results/generation/yy.jpg',
-        weights_path='../data/evaluation/intraset/model_7img_augmented/weights/Paper7Augmented.pt',
-        output_path=f"../results/generation/output_{timestamp}.png"
+        input_path='../data/generation/',
+        weights_path='../data/evaluation/extraset/model_20img_augmented/weights/Paper20Augmented.pt',
+        output_path='../results/generation/'
     )
