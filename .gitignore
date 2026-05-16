@@ -159,5 +159,24 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-results/sample/
+# ==========================================
+# CUSTOM GAN PROJECT FILES
+# ==========================================
+
+# 1. Dataset e Immagini di Input
+# Ignora le cartelle dove l'utente inserisce i propri dati personali o pesanti
+data/
+inputs/
+
+# 2. Risultati e Output Generati
+# Ignora le immagini create dal modello, i log di training e i report
+outputs/
+results/
+
+# 3. Pesi dei Modelli (Checkpoints)
+# GitHub ha un limite di 100MB, questi file non vanno mai tracciati
+weights/
+checkpoints/
 *.pt
+*.pth
+*.ckpt
