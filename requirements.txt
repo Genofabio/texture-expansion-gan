@@ -1,0 +1,23 @@
+# ==========================================
+# GAN PROJECT DEPENDENCIES
+# ==========================================
+
+# Core & Utilities
+Pillow
+matplotlib
+tqdm
+PyYAML
+
+# Image Metrics & Evaluation
+pytorch-fid
+lpips
+scikit-image
+piq
+basicsr
+
+# ==========================================
+# IMPORTANT NOTE REGARDING PYTORCH:
+# ==========================================
+# torch, torchvision, and torchaudio are intentionally omitted from this file.
+# Please install them manually based on your hardware configuration (CPU or GPU) 
+# by following the official instructions at: https://pytorch.org/get-started/locally/
