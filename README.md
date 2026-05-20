@@ -186,7 +186,14 @@ $$
 The dataset features circular wooden sections characterized by irregular concentric rings and strong non-stationary behavior. These were selected specifically to represent extremely challenging synthesis scenarios. During training, a random `128×128` crop is extracted, and the corresponding `256×256` region is used as ground truth to simulate texture expansion.
 
 - **Configuration:** 55 source images, 400,000 random crops, 100,000 iterations (Batch Size = 8).
-- **Download:** [Get the dataset here](https://drive.google.com/file/d/1sCRxo3fHSR5K1ETKV8t6sEQhmhzy5zVs/view?usp=drive_link)
+- **Download Data & Weights:** You can download the datasets and our best `pretrained_weights.pt` directly from the [GitHub Releases](../../releases) page of this repository.
+
+**File Placement Guide:**
+To ensure the pipelines work correctly out of the box without modifying the `config.yaml`, place the downloaded files in these exact directories (create them if they do not exist):
+
+* **Training images** (55 files) -> `data/training/`
+* **Evaluation images** (5 unseen files) -> `data/evaluation/originals/`
+* **Pre-trained weights** (`.pt` file) -> `weights/`
 
 > **Disclaimer regarding Dataset Copyright:** The dataset provided in this repository was collected and is shared exclusively for academic research and non-commercial educational purposes. The copyright of the original source images belongs to their respective owners. If you are the rights holder of any image included in the dataset and wish for it to be removed, please open an issue or contact the authors, and it will be taken down immediately.
 
