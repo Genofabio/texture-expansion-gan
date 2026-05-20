@@ -4,16 +4,18 @@
 
 dataset:
   # 1. Original full-size source images (untouched)
-  train_sources: "./data/training/originals"
+  train_sources: "./data/training"
   eval_sources: "./data/evaluation/originals"
   
   # 2. Target folders for extracted crops used in training/testing
+  # Note: train_crops_folder is kept for structural consistency, but training runs on-the-fly from train_sources
   train_crops_folder: "./data/training/crops"
   eval_crops_folder: "./data/evaluation/crops"
   
   # Dataset parameters
   image_size: 256
   train_num_samples: 500000
+  eval_num_samples: 1000
 
 model:
   # Select "cuda" for GPU acceleration, "cpu" for standard processor
@@ -26,14 +28,14 @@ training:
   
   # Hyperparameters
   num_steps: 100000
-  batch_size: 4  # Set to 4 for 6GB VRAM (if CUDA Out of Memory occurs, lower to 2)
+  batch_size: 1  # Set to 4 for 6GB VRAM (if CUDA Out of Memory occurs, lower to 2)
   initial_lr: 0.0002
 
 inference:
   # End-user inference area (for generate.py)
   input_folder: "./data/generation"
   output_folder: "./outputs/generation"
-  weights_path: "./weights/pretrained_model.pt"
+  weights_path: "./weights/"
 
 evaluation:
   # Area for final metrics and reports (for evaluate.py)

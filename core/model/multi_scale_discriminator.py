@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
-from model.discriminator import Discriminator  # Usa il tuo esistente
+from core.model.discriminator import Discriminator  
 
 class MultiScaleDiscriminator(nn.Module):
     def __init__(self, num_scales=2):

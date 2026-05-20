@@ -6,8 +6,6 @@
 
 **Authors:** Fabio Genovese, Tommaso Querci
 
----
-
 ## Overview
 
 This project extends the architecture proposed in *"Non-Stationary Texture Synthesis by Adversarial Expansion"* to improve texture synthesis generalization on unseen data.
@@ -15,8 +13,6 @@ This project extends the architecture proposed in *"Non-Stationary Texture Synth
 Generating non-stationary textures from small image crops is a highly challenging task. To achieve coherent and realistic results, we enhanced a base GAN architecture with a VGG-19 Perceptual Loss, localized L1 loss recalibration, a robust data augmentation pipeline, and multiscale discriminators. These modifications significantly improve perceptual quality, reduce memorization behavior, and enhance structural coherence compared to the original architecture.
 
 **Key Features:** GAN-based texture expansion, multiscale discrimination, automatic LPIPS/DISTS/NIQE/FID evaluation, and a full PyTorch implementation.
-
----
 
 ## Visual Results
 
@@ -88,7 +84,82 @@ This scenario evaluates true generalization by testing both networks on **comple
   </tbody>
 </table>
 
----
+## Installation & Setup
+
+1. **Clone the repository:**
+   ```bash
+   git clone [https://github.com/yourusername/texture-expansion-gan.git](https://github.com/yourusername/texture-expansion-gan.git)
+   cd texture-expansion-gan
+   ```
+
+2. **Create a virtual environment (Recommended):**
+   ```bash
+   python -m venv venv
+   # On Windows:
+   venv\Scripts\activate
+   # On Linux/Mac:
+   source venv/bin/activate
+   ```
+
+3. **Install dependencies:**
+   ```bash
+   pip install torch torchvision
+   pip install matplotlib pyyaml tqdm lpips torchmetrics
+   ```
+
+## Project Structure
+
+The repository is modularized to strictly separate model architecture, training pipelines, and data management.
+
+```text
+texture-expansion-gan/
+├── core/
+│   ├── dataset/         # Dataloaders and augmentation
+│   ├── metrics/         # Cached metrics (PSNR, SSIM, LPIPS)
+│   ├── model/           # Generator, Multiscale Discriminators, Losses
+│   ├── pipelines/       # Isolated execution flows (train, generate, evaluate)
+│   └── utils/           # Visualizations, Checkpoint I/O, File System management
+├── data/                # Inputs and datasets (not tracked by git)
+├── outputs/             # Generated checkpoints, logs, and evaluation metrics
+├── config.yaml          # Centralized configuration (hyperparameters & routing)
+└── run.py               # Main CLI entry point
+```
+
+## Usage Pipeline
+
+All operations are managed through the central `run.py` script. The pipeline behavior is fully controlled by the `config.yaml` file.
+
+### 1. Training
+Starts the GAN training process. If previous weights are found in the checkpoint directory, training resumes automatically from the last step. If no weights are found, the environment is cleared and initialized from scratch.
+```bash
+python run.py train
+```
+Monitors, plots, and sample comparisons are generated every 100 steps inside outputs/training/logs/.
+
+### 2. Inference (Texture Expansion)
+Expands new 128x128 input textures using the trained model.
+1. Place your 128x128 .png or .jpg images inside the input_folder defined in config.yaml.
+2. Ensure the pre-trained .pt weights file is located in the weights_path directory.
+3. Run the generator:
+    ```bash
+    python run.py generate
+    ```
+
+### 3. Data Preparation (Evaluation Set)
+While the training dataset extracts crops dynamically *on-the-fly* to maximize variance and prevent overfitting, the evaluation dataset requires a static, immutable set of crops to ensure consistent metrics across different models.
+1. Place your high-resolution test images inside the `eval_sources` directory (e.g., `data/evaluation/originals`).
+2. Run the preparation script to extract the fixed crops:
+    ```bash
+    python run.py prepare
+    ```
+This will generate a static set of paired 128x128 inputs and 256x256 targets inside data/evaluation/crops.
+
+### 4. Evaluation
+Runs a quantitative and qualitative assessment over the static test dataset prepared in step 1 to measure domain generalization.
+```bash
+python run.py evaluate
+```
+This produces a final_metrics.json report containing average PSNR, SSIM, and LPIPS scores, along with visual comparison grids and metric distribution histograms saved in outputs/evaluation/.
 
 ## Methodology & Architecture
 
@@ -110,8 +181,6 @@ $$
 
 5. **Data Augmentation:** A comprehensive pipeline (flips, rotations, brightness/contrast/saturation/hue shifts) to significantly boost generalization.
 
----
-
 ## Dataset
 
 The dataset features circular wooden sections characterized by irregular concentric rings and strong non-stationary behavior. These were selected specifically to represent extremely challenging synthesis scenarios. During training, a random `128×128` crop is extracted, and the corresponding `256×256` region is used as ground truth to simulate texture expansion.
@@ -121,8 +190,6 @@ The dataset features circular wooden sections characterized by irregular concent
 
 > **Disclaimer regarding Dataset Copyright:** The dataset provided in this repository was collected and is shared exclusively for academic research and non-commercial educational purposes. The copyright of the original source images belongs to their respective owners. If you are the rights holder of any image included in the dataset and wish for it to be removed, please open an issue or contact the authors, and it will be taken down immediately.
 
----
-
 ## Limitations 
 
 While the modifications yield substantial improvements, some limitations remain, such as:
@@ -130,8 +197,6 @@ While the modifications yield substantial improvements, some limitations remain,
 - Tonal artifacts on unusual colors
 - Memorization of strong concentric patterns
 - Instability on textures far from the training distribution
-
----
 
 ## References
 

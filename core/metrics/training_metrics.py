@@ -1,26 +1,23 @@
+import matplotlib
+matplotlib.use('Agg')  # Protezione memoria RAM
 import os
 import torch
-from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure  
 import lpips
-from torchvision import transforms
-from PIL import Image
+from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure  
 import matplotlib.pyplot as plt
 from datetime import datetime
 
 def save_training_metrics_plot(metrics_history, dataset_dim, save_dir='./outputs/training/logs'):
     """
-    Salva un grafico riassuntivo delle metriche PSNR, SSIM e LPIPS durante il training.
-    metrics_history è una lista di dict, es:
-    [{'step': 0, 'psnr': ..., 'ssim': ..., 'lpips': ...}, ...]
+    Saves a summary plot of the PSNR, SSIM, and LPIPS metrics monitored during training.
     """
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
     steps = [m['step'] for m in metrics_history]
     psnr = [m['psnr'] for m in metrics_history]
     ssim = [m['ssim'] for m in metrics_history]
-    lpips = [m['lpips'] for m in metrics_history]
+    lpips_vals = [m['lpips'] for m in metrics_history]
 
-    # Grafico 1x3 per le tre metriche rimanenti
     fig, axs = plt.subplots(1, 3, figsize=(18, 5))
     fig.suptitle(f"Training Metrics Summary ({timestamp})", fontsize=18)
 
@@ -39,7 +36,7 @@ def save_training_metrics_plot(metrics_history, dataset_dim, save_dir='./outputs
     axs[1].grid(True)
 
     # LPIPS
-    axs[2].plot(steps, lpips, color='red')
+    axs[2].plot(steps, lpips_vals, color='red')
     axs[2].set_title('LPIPS')
     axs[2].set_xlabel('Step')
     axs[2].set_ylabel('LPIPS (lower is better)')
@@ -52,20 +49,26 @@ def save_training_metrics_plot(metrics_history, dataset_dim, save_dir='./outputs
     
     save_path = os.path.join(plots_dir, f"training_metrics_dataset_dim_{dataset_dim}_{timestamp}.png")
     plt.savefig(save_path)
-    plt.close(fig)
-    print(f"Salvato Training metrics plot in: {save_path}")
+    
+    # Pulizia memoria profonda
+    fig.clf()
+    plt.close('all')
+    print(f"Saved Training metrics plot to: {save_path}")
+
 
 def denormalize(tensor):
     return (tensor + 1) / 2  # [-1, 1] -> [0, 1]
 
+
 def evaluate_training_batch(real_batch, generated_batch, device='cuda'):
-    psnr = PeakSignalNoiseRatio().to(device)
-    ssim = StructuralSimilarityIndexMeasure().to(device)
+    """Standard non-cached version used by the evaluation pipeline."""
+    psnr = PeakSignalNoiseRatio(data_range=1.0).to(device)
+    ssim = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)
     loss_fn = lpips.LPIPS(net='vgg').to(device)
 
     psnr_scores, ssim_scores, lpips_scores = [], [], []
 
-    with torch.no_grad():  # 🔒 evita calcolo del grafo
+    with torch.no_grad():  
         for real_img, gen_img in zip(real_batch, generated_batch):
             real_img = denormalize(real_img).unsqueeze(0).to(device)
             gen_img = denormalize(gen_img).unsqueeze(0).to(device)
@@ -74,9 +77,9 @@ def evaluate_training_batch(real_batch, generated_batch, device='cuda'):
             ssim_scores.append(ssim(gen_img, real_img).item())
             lpips_scores.append(loss_fn(gen_img, real_img).item())
 
-    avg_psnr = sum(psnr_scores) / len(psnr_scores)
-    avg_ssim = sum(ssim_scores) / len(ssim_scores)
-    avg_lpips = sum(lpips_scores) / len(lpips_scores)
+    avg_psnr = sum(psnr_scores) / len(psnr_scores) if psnr_scores else 0.0
+    avg_ssim = sum(ssim_scores) / len(ssim_scores) if ssim_scores else 0.0
+    avg_lpips = sum(lpips_scores) / len(lpips_scores) if lpips_scores else 0.0
 
     return {
         'psnr': avg_psnr,
@@ -84,18 +87,18 @@ def evaluate_training_batch(real_batch, generated_batch, device='cuda'):
         'lpips': avg_lpips
     }
 
-def evaluate_training_batch_cached(real_batch, generated_batch, device='cuda'):
+
+def evaluate_training_batch_cached(real_batch, generated_batch, device='cuda', lpips_module=None):
+    """Memory-optimized cached version used by the training pipeline (train.py)."""
     if not hasattr(evaluate_training_batch_cached, "initialized"):
-        evaluate_training_batch_cached.psnr = PeakSignalNoiseRatio().to(device)
-        evaluate_training_batch_cached.ssim = StructuralSimilarityIndexMeasure().to(device)
-        evaluate_training_batch_cached.loss_fn = lpips.LPIPS(net='vgg').to(device)
+        evaluate_training_batch_cached.psnr = PeakSignalNoiseRatio(data_range=1.0).to(device)
+        evaluate_training_batch_cached.ssim = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)
         evaluate_training_batch_cached.initialized = True
 
     psnr = evaluate_training_batch_cached.psnr
     ssim = evaluate_training_batch_cached.ssim
-    loss_fn = evaluate_training_batch_cached.loss_fn
 
-    psnr_scores, ssim_scores, lpips_scores = [], [], []
+    psnr_scores, ssim_scores = [], []
 
     with torch.no_grad():
         for real_img, gen_img in zip(real_batch, generated_batch):
@@ -104,11 +107,18 @@ def evaluate_training_batch_cached(real_batch, generated_batch, device='cuda'):
 
             psnr_scores.append(psnr(gen_img, real_img).item())
             ssim_scores.append(ssim(gen_img, real_img).item())
-            lpips_scores.append(loss_fn(gen_img, real_img).item())
 
-    avg_psnr = sum(psnr_scores) / len(psnr_scores)
-    avg_ssim = sum(ssim_scores) / len(ssim_scores)
-    avg_lpips = sum(lpips_scores) / len(lpips_scores)
+    avg_psnr = sum(psnr_scores) / len(psnr_scores) if psnr_scores else 0.0
+    avg_ssim = sum(ssim_scores) / len(ssim_scores) if ssim_scores else 0.0
+
+    if lpips_module is not None:
+        with torch.no_grad():
+            # FIX: Spostiamo esplicitamente entrambi i tensori sulla GPU prima di darli in pasto a LPIPS
+            gen_gpu = generated_batch.to(device)
+            real_gpu = real_batch.to(device)
+            avg_lpips = lpips_module(gen_gpu, real_gpu).item()
+    else:
+        avg_lpips = 0.0
 
     return {
         'psnr': avg_psnr,

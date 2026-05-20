@@ -1,24 +1,24 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from model.style_loss import StyleLoss
-from model.perceptual_loss import PerceptualLoss
+from core.model.style_loss import StyleLoss
+from core.model.perceptual_loss import PerceptualLoss
 
 class GANTrainer:
     def __init__(self, generator, discriminator, device='cuda'):
         self.device = device
 
-        # Usa i modelli passati come argomenti
+        # Use the passed models as arguments
         self.generator = generator.to(device)
         self.discriminator = discriminator.to(device)
 
-        # Verifica se il discriminatore è multi-scala
+        # Check if the discriminator is multi-scale
         self.multi_scale = hasattr(discriminator, 'discriminators')
         print(f"Using multi-scale discriminator: {self.multi_scale}")
 
-        # Ottimizzatori
-        self.optim_G = optim.Adam(self.generator.parameters(), lr=2e-4, betas=(0.5, 0.999))
-        self.optim_D = optim.Adam(self.discriminator.parameters(), lr=2e-4, betas=(0.5, 0.999))
+        # Optimizers
+        self.optim_G = optim.Adam(self.generator.parameters(), lr=2e-4, betas=(0.5, 0.999), foreach=False)
+        self.optim_D = optim.Adam(self.discriminator.parameters(), lr=2e-4, betas=(0.5, 0.999), foreach=False)
 
         # Loss functions
         self.adv_loss = nn.BCELoss()
@@ -30,7 +30,7 @@ class GANTrainer:
         # PerceptualLoss
         self.perceptual_loss = PerceptualLoss(device=device)
 
-        # Hyperparametri
+        # Hyperparameters
         self.lambda_l1 = 50
         self.lambda_style = 10
         self.lambda_perceptual = 1
@@ -40,10 +40,10 @@ class GANTrainer:
         real_128 = real_128.to(self.device)
         real_256 = real_256.to(self.device)
 
-        # Genera fake_256 subito
+        # Generate fake_256 immediately
         fake_256 = self.generator(real_128)
 
-        # === Patch localizzata da real_256 e fake_256 ===
+        # === Localized patch from real_256 and fake_256 ===
         localized_real = torch.zeros((batch_size, 3, 128, 128), device=self.device)
         localized_fake = torch.zeros((batch_size, 3, 128, 128), device=self.device)
 
@@ -61,7 +61,7 @@ class GANTrainer:
             pred_real = self.discriminator(real_256)
             pred_fake = self.discriminator(fake_256.detach())
 
-            # Crea tensori validi e fake in base alle dimensioni degli output
+            # Create valid and fake tensors based on output dimensions
             valid = [torch.ones_like(p) for p in pred_real]
             fake = [torch.zeros_like(p) for p in pred_fake]
 

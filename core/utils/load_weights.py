@@ -3,31 +3,31 @@ import torch
 import glob
 
 def load_weights(generator, discriminator, weights_dir='./outputs/training/checkpoints'):
-    # Assicurati che la cartella esista
+    # Ensure the directory exists
     os.makedirs(weights_dir, exist_ok=True)
 
-    # Cerca tutti i file che corrispondono al pattern
+    # Search for all files matching the pattern
     weight_files = glob.glob(os.path.join(weights_dir, 'weights_*.pt'))
 
     if not weight_files:
-        print("Nessun file di pesi trovato. Inizializzazione dei pesi da zero.")
-        return 0, {}, {}, {}  # Nessuno step, nessuna loss, nessuna acc, nessuna metrica
+        print("No weight files found. Initializing weights from scratch.")
+        return 0, {}, {}, {}  # No step, no losses, no accuracies, no metrics
 
-    # Ordina i file in base al timestamp nel nome (decrescente, più recente per primo)
+    # Sort files based on the timestamp in the name (descending, newest first)
     weight_files.sort(reverse=True)
     latest_weight_file = weight_files[0]
 
-    # Carica il checkpoint (usiamo cpu per sicurezza, poi il trainer lo sposterà)
+    # Load the checkpoint (use CPU for safety, the trainer will move it later)
     checkpoint = torch.load(latest_weight_file, map_location='cpu')
     step = checkpoint.get('step', 0)
 
-    # Carica i pesi nei modelli
+    # Load weights into the models
     generator.load_state_dict(checkpoint['generator_state_dict'])
     discriminator.load_state_dict(checkpoint['discriminator_state_dict'])
 
-    print(f"Pesi caricati con successo da {latest_weight_file}, riprendendo dallo step {step}")
+    print(f"Weights successfully loaded from {latest_weight_file}, resuming from step {step}")
 
-    # Recupera metriche se presenti
+    # Retrieve metrics history if present
     losses = {
         'losses_D_list': checkpoint.get('losses_D_list', []),
         'losses_G_list': checkpoint.get('losses_G_list', []),
